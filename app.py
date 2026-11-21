@@ -3,7 +3,7 @@ from groq import Groq
 from google import genai
 from google.genai import types
 
-st.set_page_config(page_title="Student Athlete Nutrition Coach", page_icon="💪", layout="wide")
+st.set_page_config(page_title="Student Athlete Nutrition Coach", page_icon="💪", layout="wide", initial_sidebar_state="collapsed")
 
 GROQ_MODELS = ["openai/gpt-oss-120b", "llama-3.3-70b-versatile"]  # primary (higher free limits)
 GEMINI_MODELS = ["gemini-2.5-flash", "gemini-3.5-flash"]  # fallback if Groq fails or hits its limit
@@ -163,6 +163,9 @@ html, body, .stApp, .stMarkdown, p, h1, h2, h3, h4, label, button, input, textar
 .hero h1 { margin: 0; color: #fff; font-size: 2rem; font-weight: 800; }
 .hero p { margin: 6px 0 0; color: #ECFDF5; font-size: 1.05rem; }
 
+.cgrid { display: grid; gap: 12px; margin: 8px 0 14px; }
+.cgrid.c4 { grid-template-columns: repeat(4, 1fr); }
+.cgrid.c2 { grid-template-columns: repeat(2, 1fr); }
 .mcard {
     border-radius: 20px; padding: 18px 12px; text-align: center; color: #fff;
     box-shadow: 0 8px 24px rgba(0,0,0,.25); transition: transform .2s ease;
@@ -193,20 +196,33 @@ div.stButton > button:hover {
 .stTabs [aria-selected="true"] { background: linear-gradient(135deg, #22C55E55, #F9731655); }
 .stTabs [data-baseweb="tab-highlight"], .stTabs [data-baseweb="tab-border"] { display: none; }
 
-[data-testid="stSidebar"] { background: #0F1830; border-inline-end: 1px solid rgba(255,255,255,.06); }
 [data-testid="stChatMessage"] { border-radius: 18px; background: rgba(255,255,255,.04); }
+div.stButton > button { white-space: normal; height: auto; line-height: 1.4; }
+[data-testid="stExpander"] { border-radius: 18px; border: 1px solid rgba(255,255,255,.08); background: rgba(255,255,255,.03); }
+
+@media (max-width: 640px) {
+    .block-container { padding: 3rem .9rem 3rem; }
+    .hero { padding: 18px 18px; border-radius: 18px; }
+    .hero h1 { font-size: 1.35rem; }
+    .hero p { font-size: .9rem; }
+    .cgrid.c4 { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .mcard { padding: 14px 8px; border-radius: 16px; }
+    .mval { font-size: 1.5rem; }
+    .stTabs [data-baseweb="tab"] { padding: 8px 12px; font-size: .85rem; }
+    div.stButton > button { width: 100%; }
+    h2, h3 { font-size: 1.2rem !important; }
+}
 </style>
 """
 
 RTL_CSS = """
 <style>
-.stApp, [data-testid="stSidebar"] { direction: rtl; text-align: right; }
+.stApp { direction: rtl; text-align: right; }
 </style>
 """
 
 # ───────────────────────── Language switch ─────────────────────────
-with st.sidebar:
-    lang_label = st.radio("Language / اللغة", ["English", "العربية"], horizontal=True)
+lang_label = st.radio("Language", ["English", "العربية"], horizontal=True, label_visibility="collapsed")
 lang = "ar" if lang_label == "العربية" else "en"
 T = TEXT[lang]
 
@@ -346,24 +362,28 @@ def card(icon, label, value, unit, c1, c2):
     )
 
 
-# ───────────────────────── Sidebar ─────────────────────────
-with st.sidebar:
-    st.header(T["sidebar_header"])
-    weight = st.number_input(T["weight"], min_value=30.0, max_value=200.0, value=70.0, step=0.5)
-    goal = st.pills(T["goal"], list(T["goals"].keys()), default="muscle",
-                    format_func=lambda k: T["goals"][k]) or "muscle"
-    sport = st.pills(T["sport"], list(T["sports"].keys()), default="gym",
-                     format_func=lambda k: T["sports"][k]) or "gym"
-    schedule = st.pills(T["schedule"], list(T["schedules"].keys()), default="after",
-                        format_func=lambda k: T["schedules"][k]) or "after"
-    st.divider()
-    st.caption(T["disclaimer"])
-
 # ───────────────────────── Hero ─────────────────────────
 st.markdown(
     f'<div class="hero"><h1>💪 {T["page_title"]}</h1><p>{T["hero_sub"]}</p></div>',
     unsafe_allow_html=True,
 )
+
+# ───────────────────────── Profile (works on mobile: no sidebar needed) ─────────────────────────
+with st.expander(T["sidebar_header"], expanded=True):
+    a1, a2 = st.columns(2)
+    with a1:
+        weight = st.number_input(T["weight"], min_value=30.0, max_value=200.0, value=70.0, step=0.5)
+    with a2:
+        goal = st.pills(T["goal"], list(T["goals"].keys()), default="muscle",
+                        format_func=lambda k: T["goals"][k]) or "muscle"
+    b1, b2 = st.columns(2)
+    with b1:
+        sport = st.pills(T["sport"], list(T["sports"].keys()), default="gym",
+                         format_func=lambda k: T["sports"][k]) or "gym"
+    with b2:
+        schedule = st.pills(T["schedule"], list(T["schedules"].keys()), default="after",
+                            format_func=lambda k: T["schedules"][k]) or "after"
+st.caption(T["disclaimer"])
 
 tab1, tab2, tab3, tab4 = st.tabs(T["tabs"])
 
@@ -371,11 +391,15 @@ tab1, tab2, tab3, tab4 = st.tabs(T["tabs"])
 with tab1:
     calories, protein, carbs, fat = calc_macros(weight, goal, sport)
     st.subheader(T["t1_sub"])
-    c1, c2, c3, c4 = st.columns(4)
-    c1.markdown(card("🔥", T["calories"], calories, "kcal", "#F97316", "#EA580C"), unsafe_allow_html=True)
-    c2.markdown(card("🥩", T["protein"], protein, T["g"], "#16A34A", "#15803D"), unsafe_allow_html=True)
-    c3.markdown(card("🍚", T["carbs"], carbs, T["g"], "#0EA5E9", "#0369A1"), unsafe_allow_html=True)
-    c4.markdown(card("🥜", T["fat_m"], fat, T["g"], "#EAB308", "#A16207"), unsafe_allow_html=True)
+    st.markdown(
+        '<div class="cgrid c4">'
+        + card("🔥", T["calories"], calories, "kcal", "#F97316", "#EA580C")
+        + card("🥩", T["protein"], protein, T["g"], "#16A34A", "#15803D")
+        + card("🍚", T["carbs"], carbs, T["g"], "#0EA5E9", "#0369A1")
+        + card("🥜", T["fat_m"], fat, T["g"], "#EAB308", "#A16207")
+        + "</div>",
+        unsafe_allow_html=True,
+    )
 
     kp, kc, kf = protein * 4, carbs * 4, fat * 9
     total = max(kp + kc + kf, 1)
@@ -468,9 +492,13 @@ with tab4:
 
     target = calc_water(weight, sport, hours)
     remaining = max(target - intake, 0)
-    k1, k2 = st.columns(2)
-    k1.markdown(card("🎯", T["target"], f"{target:.1f}", T["liters"], "#0EA5E9", "#0369A1"), unsafe_allow_html=True)
-    k2.markdown(card("🥤", T["gap"], f"{remaining:.1f}", T["liters"], "#14B8A6", "#0F766E"), unsafe_allow_html=True)
+    st.markdown(
+        '<div class="cgrid c2">'
+        + card("🎯", T["target"], f"{target:.1f}", T["liters"], "#0EA5E9", "#0369A1")
+        + card("🥤", T["gap"], f"{remaining:.1f}", T["liters"], "#14B8A6", "#0F766E")
+        + "</div>",
+        unsafe_allow_html=True,
+    )
 
     st.write("")
     st.markdown(f"**{T['progress']}**")
